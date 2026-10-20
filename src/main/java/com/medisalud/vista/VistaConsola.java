@@ -8,7 +8,9 @@ import com.medisalud.entity.FacturaConDescuentoAfiliado;
 import com.medisalud.entity.FacturaConRecargoNocturno;
 import com.medisalud.entity.HistoriaClinica;
 import com.medisalud.entity.Medico;
+import com.medisalud.entity.EstadoCita;
 import com.medisalud.entity.Paciente;
+import com.medisalud.exception.CancelacionTardiaException;
 import com.medisalud.exception.CitaNoEncontradaException;
 import com.medisalud.exception.MedicoNoEncontradoException;
 import com.medisalud.exception.PacienteNoEncontradoException;
@@ -42,7 +44,8 @@ public class VistaConsola {
             System.out.println("4. Consultar historia clinica");
             System.out.println("5. Facturar consulta");
             System.out.println("6. Generar reporte");
-            System.out.println("7. Salir");
+            System.out.println("7. Cancelar cita");
+            System.out.println("8. Salir");
             System.out.print("Elegir una opcion: ");
             String opcion = lector.nextLine();
 
@@ -66,6 +69,9 @@ public class VistaConsola {
                     generarReporte();
                     break;
                 case "7":
+                    cancelarCita();
+                    break;
+                case "8":
                     continuar = false;
                     break;
                 default:
@@ -155,6 +161,30 @@ public class VistaConsola {
         }
     }
 
+    private void cancelarCita() {
+        try {
+            System.out.print("Codigo de la cita: ");
+            String codigoCita = lector.nextLine();
+            System.out.print("Motivo de la cancelacion: ");
+            String motivo = lector.nextLine();
+
+            Cita cita = controlador.cancelarCita(codigoCita, motivo);
+            System.out.println("Cita cancelada: " + cita);
+            System.out.println("Motivo: " + textoMotivo(cita));
+        } catch (CitaNoEncontradaException | TransicionInvalidaException
+                | CancelacionTardiaException | IllegalArgumentException excepcion) {
+            System.out.println("No se pudo cancelar la cita: " + excepcion.getMessage());
+        }
+    }
+
+    private String textoMotivo(Cita cita) {
+        if (cita.getEstado() != EstadoCita.CANCELADA) {
+            return "";
+        }
+        String motivo = cita.getMotivoCancelacion();
+        return motivo == null ? "Sin motivo registrado" : motivo;
+    }
+
     private void consultarHistoriaClinica() {
         try {
             System.out.print("Codigo del paciente: ");
@@ -208,12 +238,13 @@ public class VistaConsola {
             if (citas.isEmpty()) {
                 System.out.println("  Sin citas registradas.");
             } else {
-                String formato = "  %-6s | %-24s | %-10s | %-10s%n";
-                System.out.printf(formato, "Cita", "Paciente", "Fecha", "Estado");
-                System.out.println("  " + "-".repeat(7) + "+" + "-".repeat(26) + "+" + "-".repeat(12) + "+" + "-".repeat(11));
+                String formato = "  %-6s | %-24s | %-10s | %-10s | %s%n";
+                System.out.printf(formato, "Cita", "Paciente", "Fecha", "Estado", "Motivo");
+                System.out.println("  " + "-".repeat(7) + "+" + "-".repeat(26) + "+" + "-".repeat(12) + "+"
+                        + "-".repeat(12) + "+" + "-".repeat(24));
                 for (Cita cita : citas) {
                     System.out.printf(formato, cita.getCodigo(), cita.getPaciente().getNombreCompleto(),
-                            cita.getFecha(), cita.getEstado());
+                            cita.getFecha(), cita.getEstado(), textoMotivo(cita));
                 }
             }
 
@@ -242,6 +273,17 @@ public class VistaConsola {
                 System.out.println("  " + "-".repeat(9) + "+" + "-".repeat(28) + "+" + "-".repeat(6));
                 for (Paciente paciente : mayores) {
                     System.out.printf(formato, paciente.getCodigo(), paciente.getNombreCompleto(), paciente.getEdad());
+                }
+            }
+
+            Map<String, Long> cancelaciones = controlador.generarReporteCancelacionesPorMedico();
+            imprimirTitulo("Cancelaciones por medico");
+            if (cancelaciones.isEmpty()) {
+                System.out.println("  Sin citas canceladas.");
+            } else {
+                System.out.printf("  %-10s | %s%n", "Medico", "Canceladas");
+                for (Map.Entry<String, Long> fila : cancelaciones.entrySet()) {
+                    System.out.printf("  %-10s | %d%n", fila.getKey(), fila.getValue());
                 }
             }
             System.out.println();

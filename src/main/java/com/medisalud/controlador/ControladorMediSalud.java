@@ -5,6 +5,7 @@ import com.medisalud.entity.Factura;
 import com.medisalud.entity.HistoriaClinica;
 import com.medisalud.entity.Medico;
 import com.medisalud.entity.Paciente;
+import com.medisalud.exception.CancelacionTardiaException;
 import com.medisalud.exception.CitaNoEncontradaException;
 import com.medisalud.exception.MedicoNoEncontradoException;
 import com.medisalud.exception.PacienteNoEncontradoException;
@@ -61,6 +62,11 @@ public class ControladorMediSalud {
         servicioCitas.atenderCita(codigoCita, diagnostico);
     }
 
+    public Cita cancelarCita(String codigoCita, String motivo)
+            throws CitaNoEncontradaException, TransicionInvalidaException, CancelacionTardiaException {
+        return servicioCitas.cancelarCita(codigoCita, motivo);
+    }
+
     public Cita buscarCita(String codigoCita) throws CitaNoEncontradaException {
         return servicioCitas.buscarPorCodigo(codigoCita);
     }
@@ -77,6 +83,10 @@ public class ControladorMediSalud {
 
     public List<Cita> generarReportePorMedico(String codigoMedico) {
         return servicioCitas.listarPorMedico(codigoMedico);
+    }
+
+    public Map<String, Long> generarReporteCancelacionesPorMedico() {
+        return servicioCitas.cancelacionesPorMedico();
     }
 
     public Map<String, Double> generarReporteFacturacionPorMedico() {
