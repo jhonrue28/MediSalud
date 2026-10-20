@@ -30,6 +30,7 @@ public class Principal {
         HiloNotificaciones hiloNotificaciones = new HiloNotificaciones();
         hiloNotificaciones.start();
         ObservadorCitaNotificacion observador = new ObservadorCitaNotificacion(hiloNotificaciones);
+        servicioCitas.registrarObservador(observador);
         FachadaAgendamiento fachadaAgendamiento = new FachadaAgendamiento(
                 servicioPacientes, servicioMedicos, servicioCitas, observador);
 
