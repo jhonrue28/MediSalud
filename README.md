@@ -42,9 +42,13 @@ vez de una excepción genérica de Java.
 5. **Facturar consulta**: por código de cita, elige estrategia de costo (consulta
    general o de especialista) y permite aplicar descuento de afiliado y/o recargo
    nocturno (patrón Decorator).
-6. **Generar reporte**: citas de un médico, total facturado por médico (Stream API) y
-   pacientes a partir de una edad mínima (lambda + Stream API).
-7. **Salir**: detiene de forma ordenada el hilo de notificaciones y cierra el programa.
+6. **Generar reporte**: citas de un médico (con columna de motivo si la cita está
+   cancelada), total facturado por médico (Stream API), pacientes a partir de una edad
+   mínima (lambda + Stream API) y cancelaciones por médico.
+7. **Cancelar cita**: pide el código y un motivo obligatorio (máximo 200 caracteres).
+   Solo se cancela si la cita está `PENDIENTE` o `CONFIRMADA` y su fecha no es anterior
+   a hoy. El motivo queda en `citas.motivo_cancelacion`.
+8. **Salir**: detiene de forma ordenada el hilo de notificaciones y cierra el programa.
 
 ## Reglas de negocio
 
@@ -77,9 +81,14 @@ proyecto».
 - `docker-compose.yml`: servidor MySQL 8.0 (`root`/`root`, puerto `3306`, los mismos datos
   que usa `ConexionBD`), con los datos en el volumen `medisalud-datos`.
 - `sql/medisalud.sql`: crea la base `medisalud`, las tablas `pacientes`, `medicos` y
-  `citas` (con claves foráneas `CONSTRAINT … FOREIGN KEY`) y carga datos de ejemplo (10 pacientes, 10 médicos, 30 citas). Se ejecuta solo
+  `citas` (con claves foráneas `CONSTRAINT … FOREIGN KEY`, incluida la columna nullable
+  `motivo_cancelacion`) y carga datos de ejemplo (10 pacientes, 10 médicos, 30 citas). Se ejecuta solo
   en el primer arranque del contenedor, porque la carpeta `sql` se monta en
   `/docker-entrypoint-initdb.d`.
+- `sql/002-motivo-cancelacion.sql`: migración idempotente para una base que ya existía.
+  Agrega `citas.motivo_cancelacion VARCHAR(200) NULL` sin borrar datos. Si la columna ya
+  está, no hace nada. Hay que aplicarla a mano: el entrypoint de Docker no vuelve a
+  correr los scripts de un volumen ya inicializado.
 
 ```bash
 cd curso-java/proyecto-final/solucion
@@ -89,11 +98,14 @@ docker compose exec mysql mysql -uroot -proot -e "SHOW TABLES FROM medisalud;"
 # Solo si las tablas no aparecieron (o para volver a cargar el script):
 docker compose exec -T mysql mysql -uroot -proot < sql/medisalud.sql
 
+# Base ya creada antes de existir motivo_cancelacion (no borra filas; se puede repetir):
+docker compose exec -T mysql mysql -uroot -proot medisalud < sql/002-motivo-cancelacion.sql
+
 javac -d out $(find src/main/java -name "*.java")
 java -cp "out:lib/mysql-connector-j-8.3.0.jar" com.medisalud.Principal
 ```
 
-Se muestra el menú y queda esperando una opción por teclado (`1` a `7`) en un bucle real
+Se muestra el menú y queda esperando una opción por teclado (`1` a `8`) en un bucle real
 hasta elegir "Salir". Los datos quedan en las tablas `pacientes`/`medicos`/`citas` y se
 conservan entre ejecuciones (y aunque se borre el contenedor con `docker compose down`;
 `docker compose down -v` borra también los datos).
